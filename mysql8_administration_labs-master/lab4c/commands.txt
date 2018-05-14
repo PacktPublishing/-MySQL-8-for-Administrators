@@ -1,0 +1,84 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the master
+vagrant ssh lab4c-db1
+
+# Log in to the slave
+vagrant ssh lab4c-db2
+
+# On master (lab4c-db1), start mysql client
+mysql
+
+# On the master (lab4c-db1), check the master status
+show master status;
+
+# On the slave (lab4c-db2), start mysql client
+mysql
+
+# On the slave (lab4c-db2), check slave status
+show slave status\G
+
+# Stop and reset the slave on the slave and check the slave status
+stop slave;
+reset slave all;
+show slave status\G
+
+# Check the server_uuid on the master (lab4c-db1)
+select @@server_uuid;
+
+# Issue some additional writes on the master
+use sbtest;
+create table t(id int primary key auto_increment, ts timestamp);
+insert into t values (null, now());
+insert into t values (null, now());
+
+# On the slave, check gtid_purged
+select @@gtid_purged;
+
+# Configure replication on the slave and check replication
+change master to master_host='lab4c-db1', master_user='repl',
+master_password='repl', master_port=3306,
+master_auto_position=1;
+start slave;
+show slave status\G
+
+# Check the table on the slave
+use sbtest;
+select * from t;
+
+# On the slave, grab the executed gtid set from the master and the slave
+# with issuing the show master status command
+select gtid_subset(<slave_gtid>, <master_gtid>);
+select gtid_subtract(<slave_gtid>, <master_gtid>);
+
+# Repeat the above with trying to increase the seqno if the first
+# set or the second or both. What happens?
+
+# Write the slave
+use sbtest;
+insert into t values (null, now());
+
+# Check that now the executed gtid set on the slave is not a subset of the master's
+select gtid_subset(<slave_gtid>, <master_gtid>);
+
+# Check what extra transactions does the slave have
+select gtid_subtract(<slave_gtid>, <master_gtid>);
+
+# Exit the mysql client on the slave (lab4c-db2)
+exit
+
+# Exit the mysql client on the master (lab4c-db1)
+exit
+
+# Exit from the ssh session with CTRL+d or exit command on lab4c-db1
+exit
+
+# Exit from the ssh session with CTRL+d or exit command on lab4c-db2
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

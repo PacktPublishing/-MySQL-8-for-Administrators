@@ -1,0 +1,46 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the database
+vagrant ssh lab4a
+
+# Start mysql client
+mysql
+
+# Check current master position
+show master status;
+(note the position)
+
+# Create a table
+use sbtest;
+create table t(id int primary key auto_increment, ts timestamp);
+
+# Insert a record
+insert into t values (null, now());
+
+# Check the binlog format
+select @@binlog_format;
+
+# Set binlog format to statement in the session
+set binlog_format='STATEMENT';
+
+# Insert an other record
+insert into t values (null, now());
+
+# Check the records
+select * from t;
+
+# Exit from mysql client
+exit
+
+# Check the binary log, what is logged in row mode? What is in statement mode?
+sudo mysqlbinlog -v /var/lib/mysql/mysql-bin.000002 --start-position=4927
+
+# Exit from the ssh session with CTRL+d or exit command on lab4a
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

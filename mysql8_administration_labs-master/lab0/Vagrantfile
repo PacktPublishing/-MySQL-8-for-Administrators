@@ -1,0 +1,11 @@
+Vagrant.configure("2") do |config|
+  config.vm.define "lab0" do |lab0|
+    lab0.vm.box = "centos/7"
+    lab0.vm.hostname = "lab0"
+    lab0.vm.network "private_network", ip: "172.17.17.11"
+    lab0.vm.provider "virtualbox" do |vb|
+      vb.memory = 512
+    end
+  end
+end
+

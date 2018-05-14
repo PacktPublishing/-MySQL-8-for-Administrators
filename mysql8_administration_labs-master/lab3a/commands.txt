@@ -1,0 +1,39 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the virtual machine
+vagrant ssh lab3a
+
+# Start the mysql client
+mysql
+
+# Check the existing databases
+show databases;
+
+# Check the existing users
+select user, host from mysql.user;
+
+# Create a new database
+create database sakila;
+
+# Create a user that has all privileges on that database
+create user 'sakila'@'localhost' identified by 'sakilapass';
+grant all on sakila.* to 'sakila'@'localhost';
+
+# Exit from mysql client
+exit
+
+# Use the pt-show-grants utility to dump all the available users in sql
+pt-show-grants
+
+# Get an individual user with grep
+pt-show-grants | grep sakila
+
+# Exit from the ssh session with CTRL+d or exit command
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

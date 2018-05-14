@@ -1,0 +1,4 @@
+---
+- include_tasks: init.yml
+- include_tasks: users.yml
+- include_tasks: rw.yml

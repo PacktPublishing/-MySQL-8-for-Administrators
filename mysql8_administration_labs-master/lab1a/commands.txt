@@ -1,0 +1,53 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the virtual machine
+vagrant ssh lab1a
+
+# Download the rpm containing the repositories
+curl -L -O https://dev.mysql.com/get/mysql57-community-release-el7-11.noarch.rpm
+
+# Install the RPM containing the repositories
+sudo rpm -ivh mysql57-community-release-el7-11.noarch.rpm
+
+# Install MySQL community server. Because of the repo manipulation switches
+# this will install MySQL 8.0.
+sudo yum –y install --disablerepo=mysql57-community --enablerepo=mysql80-community mysql-community-server
+
+# Start MySQL server.
+sudo systemctl start mysqld
+
+# Look for the temporary root password
+grep password /var/log/mysqld.log
+
+# Log in the the temporary root password
+mysql -u root -p
+(put in password)
+
+# Try show databases
+show databases;
+
+# Change the temporary root password to something else
+alter user 'root'@'localhost' identified by 'Not_so_secure1!';
+
+# Log out with CTRL+d or quit command
+quit
+
+# Log in with the changed root password
+mysql -u root -p
+(put in new password)
+
+# Try show databases
+show databases;
+
+# Exit from mysql with CTRL+d or exit command
+exit
+
+# Exit from the ssh session with CTRL+d or exit command
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

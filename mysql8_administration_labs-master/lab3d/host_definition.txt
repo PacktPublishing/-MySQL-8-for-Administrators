@@ -1,0 +1,2 @@
+lab3d-sysbench 172.17.17.12 pboros/mysql8_admin_80
+lab3d-db 172.17.17.11 pboros/mysql8_admin_80

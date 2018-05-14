@@ -1,0 +1,73 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the master database machine
+vagrant ssh lab7b-db1
+
+# Log in to the slave database machine
+vagrant ssh lab7b-db2
+
+# Log in to the sysbench box
+vagrant ssh lab7b-sysbench
+
+# Start monitoring replication lag on lab7a-db2 and leave that running
+while true ; do mysql -e "show slave status\G" | grep Seconds_Behind_Master ; sleep 1 ; done
+
+# On the sysbench node (lab7b-sysbench) run the prepare command
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab7b-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=100000 \
+/usr/share/sysbench/oltp_read_write.lua prepare
+
+# Notice that the replication lag went up during the process, but the slave caught up
+# afterwards
+
+# Start a mysql client on lab7b-db2 (in an other terminal,
+# leave the monitoring running)
+mysql
+
+# Stop replication
+stop slave;
+
+# Set slave_parallel_type to logical_clock
+set global slave_parallel_type = 'LOGICAL_CLOCK';
+
+# Set slave_parallel_workers to 8
+set global slave_parallel_workers = 8;
+
+# Start the slave again
+start slave;
+
+# On lab7b-db1 drop the sbtest database and create an empty one
+mysql -e "drop database sbtest; create database sbtest;"
+
+# Run the sysbench prepare again
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab7b-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=100000 \
+/usr/share/sysbench/oltp_read_write.lua prepare
+
+# Notice that there is no lag this time
+
+# Stop running processes, and exit from mysql clients
+
+# Exit from the ssh session with CTRL+d or exit command on all machines
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

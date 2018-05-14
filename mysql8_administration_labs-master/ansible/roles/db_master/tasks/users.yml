@@ -1,0 +1,42 @@
+---
+- name: Create sbtest database
+  mysql_db:
+    name: 'sbtest'
+    state: present
+
+- name: remote root
+  mysql_user:
+    name: 'root'
+    host: '%'
+    password: 'Not_so_secure1!'
+    priv: '*.*:ALL'
+
+- name: remote root proxy
+  shell: mysql -e "grant proxy on ''@'' to 'root'@'%' with grant option"
+
+- name: Add replication user
+  mysql_user:
+    name: 'repl'
+    host: '%'
+    password: 'repl'
+    priv: '*.*:REPLICATION SLAVE'
+
+- name: Add user for sysbench
+  mysql_user:
+    name: sbtest_user
+    host: "{{ item }}"
+    password: sbtest_password
+    priv: 'sbtest.*:ALL'
+  with_items:
+    - '%'
+    - 'localhost'
+
+- name: Add orchestrator user
+  mysql_user:
+    name: orch
+    host: "{{ item }}"
+    password: 'orch'
+    priv: '*.*:SUPER,PROCESS,REPLICATION SLAVE,RELOAD/mysql.slave_master_info:SELECT'
+  with_items:
+    - '%'
+    - 'localhost'

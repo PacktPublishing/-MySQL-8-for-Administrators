@@ -1,0 +1,37 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the virtual machine
+vagrant ssh lab2d
+
+# Grab the location of the datadir
+mysql -e "select @@datadir;"
+
+# Check the list of files in the datadir
+sudo ls -la /var/lib/mysql
+
+# Grab the location of the error log
+mysql -e "select @@log_error;"
+
+# Check the error log
+<set to stderr for systemd>
+
+# Change the error log location to /var/lib/mysql/error.log in my.cnf
+
+# Restart MySQL
+sudo systemctl restart mysqld
+
+# Check the error log location again
+mysql -e "select @@log_error"
+
+# Check the error log, it will have all the messages since the startup
+cat /var/lib/mysql/error.log
+
+# Exit from the ssh session with CTRL+d or exit command
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

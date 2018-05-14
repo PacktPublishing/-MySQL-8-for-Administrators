@@ -1,0 +1,4 @@
+lab8a-db4 172.17.17.14 pboros/mysql8_admin_57
+lab8a-db5 172.17.17.15 pboros/mysql8_admin_57
+lab8a-sysbench 172.17.17.16 pboros/mysql8_admin_57
+lab8a-db1 172.17.17.11 pboros/mysql8_admin_57

@@ -1,0 +1,8 @@
+[client]
+{% for config_key, config_value in mysql_config['client'].iteritems() %}
+{% if config_value != None %}
+{{ config_key }} = {{ config_value }}
+{% else %}
+{{ config_key }}
+{% endif %}
+{% endfor %}

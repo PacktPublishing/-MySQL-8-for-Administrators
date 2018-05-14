@@ -1,0 +1,61 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the virtual machine
+vagrant ssh lab2b
+
+# Log into mysql
+mysql
+
+# Check the value of sort_buffer_size
+SELECT @@sort_buffer_size;
+
+# Right now, it's 256k, let's set it to 512k
+SET GLOBAL sort_buffer_size = 512 * 1024;
+
+# Check the value back
+SELECT @@sort_buffer_size;
+
+# The variable didn't change, because the global just changes
+# the default for a new session
+SELECT @@global.sort_buffer_size;
+
+# It's doable even with one select
+SELECT @@global.sort_buffer_size, @@session.sort_buffer_size;
+
+# Get the same information via SHOW VARIABLES
+SHOW VARIABLES LIKE 'sort_buffer_size';
+SHOW GLOBAL VARIABLES LIKE 'sort_buffer_size';
+SHOW SESSION VARIABLES LIKE 'sort_buffer_size';
+
+# Exit from the mysql client with CTRL+d or exit command
+exit
+
+# Check the configuration difference between the config file and the set parameters
+# Percona Toolkit know the login credentials from the [client] section of /etc/my.cnf
+pt-config-diff h=localhost /etc/my.cnf
+
+# Log in again
+mysql
+
+# Because this will be a new session, global and session will be the same
+SELECT @@global.sort_buffer_size, @@session.sort_buffer_size;
+
+# Let's try changing an other variable
+SET GLOBAL wait_timeout=100;
+
+# Exit from mysql client
+exit
+
+# Run pt-config-diff again, it will only display sort_buffer_size, as it's
+# only catching differences for variables that are present in my.cnf
+pt-config-diff h=localhost /etc/my.cnf
+
+# Exit from the ssh session
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

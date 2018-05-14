@@ -1,0 +1,98 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the benchmarking virtual machine
+vagrant ssh lab3d-sysbench
+
+# Log in to the database virtual machine
+vagrant ssh lab3d-db
+
+# On lab3d-sysbench machine, run the prepare command to create the database
+# used for the benchmarks
+# The user used for this is already created
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab3d-db \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+/usr/share/sysbench/oltp_read_write.lua prepare
+
+# On lab3d-db, start mysql client
+mysql
+
+# On lab3d-db check the databases
+show databases;
+
+# Change the default schema to sbtest
+use sbtest;
+
+# Check the tables
+show tables;
+
+# Check a few records from a table
+select * from sbtest1 limit 5;
+
+# Exit from the mysql client
+exit
+
+# On the lab3d-sysbench machine, run a benchmark
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab3d-db \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+--threads=4 \
+--time=0 \
+--events=0 \
+--report-interval=1 \
+/usr/share/sysbench/oltp_read_write.lua run
+
+# Issue show processlist on the database host
+show processlist;
+
+# Stop the benchmark with CTRL+c on sysbench host
+
+# Run a rate limited benchmark, this is how we will use it mostly
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab3d-db \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+--threads=4 \
+--time=0 \
+--events=0 \
+--report-interval=1 \
+--rate=10 \
+/usr/share/sysbench/oltp_read_write.lua run
+
+# Issue the show processlist command a couple of times on the db node
+show processlist;
+
+# Stop the benchmark with CTRL+c
+
+# Exit from the ssh session with CTRL+d or exit command on lab3d-sysbench
+exit
+
+# Exit from the mysql session on lab3d-db
+exit
+
+# Exit from the ssh session with CTRL+d or exit command on lab3d-db
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

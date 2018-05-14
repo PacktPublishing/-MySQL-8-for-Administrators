@@ -1,0 +1,141 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the source database machine
+vagrant ssh lab8b-db1
+
+# Log in to the control slave
+vagrant ssh lab8b-db4
+
+# Log in to the testing slave
+vagrant ssh lab8b-db5
+
+# Log in to the sysbench box
+vagrant ssh lab8b-sysbench
+
+# On the sysbench node (lab8b-sysbench) run the prepare command
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab8b-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+/usr/share/sysbench/oltp_read_write.lua prepare
+
+# Execute sysbench against the master (lab8b-db1)
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab8b-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+--threads=4 \
+--time=0 \
+--events=0 \
+--report-interval=1 \
+--rate=10 \
+/usr/share/sysbench/oltp_read_write.lua run
+
+# On the master (lab8b-db1), get the slow log file location
+mysql -e "select @@slow_query_log_file"
+
+# On the master (lab8b-db1), make sure that the slow log doesn't exist
+sudo ls -la /var/lib/mysql/lab8b-db1-slow.log
+
+# On the master (lab8b-db1), touch the empty slow log file and make sure the
+# owner of it is the mysql user
+sudo touch /var/lib/mysql/lab8b-db1-slow.log
+sudo chown mysql:mysql /var/lib/mysql/lab8b-db1-slow.log
+
+# On the master (lab8b-db1), start a mysql client
+mysql
+
+# On the master, enable slow query logs
+set global long_query_time=0;
+set global slow_query_log=on;
+flush slow logs;
+
+# On the sysbench machine, restart the workload, to make sure sysbench's
+# threads are reconnected
+
+# Wait ~20 seconds for some data
+
+# Stop sysbench on benchmarking machine(lab8b-sysbench) or hit ctrl-c
+
+# Turn off slow query logs on the master
+set global slow_query_log=off;
+flush slow logs;
+
+# Exit from the mysql client on lab8b-db1 (master)
+
+# Check the slow query log file
+sudo du -sh /var/lib/mysql/lab8b-db1-slow.log
+
+# Create a sampled-down version with pt-query-digest on the master (lab8b-db1),
+# this will contain 10 queries of each type that we will be able to use
+# with pt-upgrade
+sudo pt-query-digest \
+--output slowlog \
+--no-report \
+--sample 10 \
+/var/lib/mysql/lab8b-db1-slow.log > /tmp/slow-sampled.log
+
+# Like in the previous lab, let's upgrade lab8b-db5, first stop mysqld
+sudo systemctl stop mysqld
+
+# Upgrade the packages
+sudo yum -y install --disablerepo=mysql57-community --enablerepo=mysql80-community mysql-community-server
+
+# Start the mysql server on lab8b-db5
+sudo systemctl start mysqld
+
+# Run mysql_upgrade
+sudo mysql_upgrade --skip-write-binlog
+
+# Restart mysql server on lab8b-db5
+sudo systemctl restart mysqld
+
+# At this point, we prepared the 2 additional machines we have for the test
+# On both the control (lab8b-db4) and the testing slave (lab8b-db5),
+# unconfigure replication and make them writable.
+
+# First start a mysql client on them
+mysql
+
+# After that, unconfigure replication on each of them and make them read-write
+stop slave;
+reset slave all;
+set global read_only=0;
+
+# From the master (lab8b-db1) run the pt-upgrade tool
+# It can be ran form anywhere, it's more convenent to run it on the master
+pt-upgrade h=lab8b-db4 h=lab8b-db5 /tmp/slow-sampled.log  > upgrade_report.txt
+pt-upgrade h=lab8b-db4 h=lab8b-db5 /tmp/slow-sampled.log  > upgrade_report2.txt
+
+
+# Examine the report produced by pt-upgrade
+less upgrade_report.txt
+
+# The first report will show some performance differences. Because the
+# lab8b-db5 was restarted and lab8b-db4 was not, this is due to cold caches.
+# Re-running the upgrade with pt-upgrade warming up lab8b-db5's results will
+# produce the same results. Not equal circumstances is a very common mistake in
+# this type of testing.
+
+# Exit from mysql clients
+exit
+
+# Exit from the ssh session with CTRL+d or exit command on all machines
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

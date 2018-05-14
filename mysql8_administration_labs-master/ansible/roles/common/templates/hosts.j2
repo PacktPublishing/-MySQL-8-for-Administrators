@@ -1,0 +1,7 @@
+127.0.0.1	{{ ansible_hostname }} {{ ansible_fqdn }}
+127.0.0.1   localhost localhost.localdomain localhost4 localhost4.localdomain4
+::1         localhost localhost.localdomain localhost6 localhost6.localdomain6
+
+{% for machine_name, values in (True|get_host_defs).iteritems() %}
+{{ values[0] }} {{ machine_name }}
+{% endfor %}

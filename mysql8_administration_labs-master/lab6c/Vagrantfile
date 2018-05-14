@@ -1,0 +1,47 @@
+def_file = "host_definition.txt"
+fh = open(def_file)
+definitions = {}
+fh.each do |def_line|
+    machine_name, ip, box = def_line.split()
+    definitions[machine_name] = [ip, box]
+end
+machines = definitions.keys()
+ips = definitions.values().map{|x| x[0]}
+box = definitions.values().map{|x| x[1]}
+num_machines = machines.length
+
+Vagrant.configure("2") do |config|
+    (1..num_machines).each do |machine_id|
+        config.ssh.insert_key = false
+        config.vm.synced_folder "../ansible", "/ansible"
+        config.vm.define machines[machine_id-1] do |machine|
+            machine.vm.box = box[machine_id-1]
+            machine.vm.network "private_network", ip: ips[machine_id-1]
+            machine.vm.hostname = machines[machine_id-1]
+            machine.vm.provider "virtualbox" do |vb|
+                vb.memory = 512
+            end
+
+            if machine_id == num_machines
+                machine.vm.provision "ansible_local" do |ansible_master|
+                    ansible_master.groups = {
+                        "master" => ["lab6c-db1"]
+                    }
+                    ansible_master.limit = "master"
+                    ansible_master.config_file = "../ansible/ansible.cfg"
+                    ansible_master.playbook = "../ansible/master_local_gtid.yml"
+                    ansible_master.extra_vars = { mysql_version: 8.0 }
+                end
+                machine.vm.provision "ansible_local" do |ansible_master|
+                    ansible_master.groups = {
+                        "master" => ["lab6c-db2"]
+                    }
+                    ansible_master.limit = "master"
+                    ansible_master.config_file = "../ansible/ansible.cfg"
+                    ansible_master.playbook = "../ansible/master_local_gtid.yml"
+                    ansible_master.extra_vars = { mysql_version: 8.0 }
+                end
+            end
+        end
+    end
+end 

@@ -1,0 +1,104 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the master
+vagrant ssh lab8a-db1
+
+# Log in to the control slave
+vagrant ssh lab8a-db4
+
+# Log in to the upgrade testing slave
+vagrant ssh lab8a-db5
+
+# Log in to the sysbench box
+vagrant ssh lab8a-sysbench
+
+# On the sysbench node (lab8a-sysbench) run the prepare command
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab8a-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+/usr/share/sysbench/oltp_read_write.lua prepare
+
+# Execute sysbench against the master (lab8a-db1)
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab8a-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+--threads=4 \
+--time=0 \
+--events=0 \
+--report-interval=1 \
+--rate=10 \
+/usr/share/sysbench/oltp_read_write.lua run
+
+# Upgrade mysql on lab8a-db5
+# First, let's stop mysql
+sudo systemctl stop mysqld
+
+# Install MySQL 8 on lab8a-db5
+sudo yum –y install --disablerepo=mysql57-community --enablerepo=mysql80-community mysql-community-server
+
+# Start mysqld on lab8a-db5
+sudo systemctl start mysqld
+
+# Run mysql_upgrade on lab8a-db5
+sudo mysql_upgrade --skip-write-binlog
+
+# Restart mysqld again on lab8a-db5
+sudo systemctl restart mysqld
+
+# While the traffic is on, execute pt-table-checksum on the master (lab8a-db1)
+pt-table-checksum --no-check-binlog-format --chunk-time 0.1
+
+# On lab8a-db4, we do a separate checksum to make sure that the second level
+# slave is checked
+pt-table-checksum --no-check-binlog-format --replicate percona.upgrade_checksums --chunk-time 0.1
+
+# On lab8a-db5, check the upgrade checksums table
+# It's normal if the mysql database has differences
+SELECT db, tbl, SUM(this_cnt) AS total_rows, COUNT(*) AS chunks
+FROM percona.upgrade_checksums
+WHERE (
+ master_cnt <> this_cnt
+ OR master_crc <> this_crc
+ OR ISNULL(master_crc) <> ISNULL(this_crc))
+GROUP BY db, tbl;
+
+# On all the other slaves, get the checksums table
+SELECT db, tbl, SUM(this_cnt) AS total_rows, COUNT(*) AS chunks
+FROM percona.checksums
+WHERE (
+ master_cnt <> this_cnt
+ OR master_crc <> this_crc
+ OR ISNULL(master_crc) <> ISNULL(this_crc))
+GROUP BY db, tbl;
+
+# Exit from all the running mysql clients
+exit
+
+# Check show master status on db1-3 and db4-5. Note the differences caused by
+# an additional pt-table-checksum.
+mysql -e "show master status\G"
+
+# Exit from mysql clients
+exit
+
+# Exit from the ssh session with CTRL+d or exit command on all machines
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

@@ -1,0 +1,82 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the orchestrator box
+vagrant ssh lab7a-orch
+
+# Log in to the source database machine
+vagrant ssh lab7a-db1
+
+# Log in to the target database machine
+vagrant ssh lab7a-db2
+
+# Log in to the third database machine
+vagrant ssh lab7a-db3
+
+# On the master (lab7a-db1), let's start a mysql client to name the cluster
+mysql
+
+# Create a metadata database that will be used by orchestrator to discover the
+# name of the cluster
+create database meta;
+use meta;
+create table cluster_name(cluster_name varchar(200));
+insert into cluster_name values ('testcluster');
+grant all on meta.* to 'orch'@'localhost';
+grant all on meta.* to 'orch'@'%';
+
+# Install the packages on the orchestraotr node (lab7a-orch)
+sudo yum -y localinstall orchestrator*
+
+# Copy the sample configuration to /etc
+sudo cp /usr/local/orchestrator/orchestrator-sample.conf.json /etc/orchestrator.conf.json
+
+# Open orchestrator config with an editor
+sudo vim /etc/orchestrator.conf.json
+
+# Change the username and password for backend mysql and topology users
+# to orch/orch
+
+# Change the DetectClusterAlias query to use the name we just created
+SELECT cluster_name FROM meta.cluster_name LIMIT 1;
+
+# Start mysql client
+mysql
+
+# Create metadata database for orchestrator
+create database orchestrator;
+
+# Grant privileges to the orch user on the metadata database (the orch user is
+# created already). The user is already created by the automation.
+grant all on orchestrator.* to 'orch'@'localhost';
+grant all on orchestrator.* to 'orch'@'%';
+
+# Exit the mysql client
+exit
+
+# Start the orchestrator service
+sudo /etc/init.d/orchestrator start
+
+# Wait a bit and check the log
+sudo less /var/log/orchestrator.log
+
+# Check the browser on 172.17.17.14:3000
+
+# Register the lab cluster
+orchestrator -c discover -i lab7a-db1:3306
+
+# The replication topology is visible
+
+# Try relocating slaves
+
+# Try doing a graceful master promotion
+
+
+# Exit from the ssh session with CTRL+d or exit command on all machines
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

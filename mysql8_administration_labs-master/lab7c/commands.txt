@@ -1,0 +1,109 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the source database machine
+vagrant ssh lab7c-db1
+
+# Log in to the target database machine
+vagrant ssh lab7c-db2
+
+# Log in to the sysbench box
+vagrant ssh lab7c-sysbench
+
+# On the sysbench node (lab7c-sysbench) run the prepare command
+# The tables this time are slightly bigger to make sure we have multiple chunks
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab7c-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=300000 \
+/usr/share/sysbench/oltp_read_write.lua prepare
+
+# Execute sysbench against the master (lab7c-db1)
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab7c-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=300000 \
+--threads=4 \
+--time=0 \
+--events=0 \
+--report-interval=1 \
+--rate=10 \
+/usr/share/sysbench/oltp_read_write.lua run
+
+# While the traffic is on, execute pt-table-checksum on the master (lab7c-db1)
+pt-table-checksum --no-check-binlog-format --chunk-time 0.1
+
+# Start mysql client on the slave (lab7c-db2)
+mysql
+
+# Examine the percona.checksums table on the slave (lab7c-db2)
+select * from percona.checksums limit 5;
+
+# On the slave (lab7c-db2) check for differences
+SELECT db, tbl, SUM(this_cnt) AS total_rows, COUNT(*) AS chunks
+FROM percona.checksums
+WHERE (
+ master_cnt <> this_cnt
+ OR master_crc <> this_crc
+ OR ISNULL(master_crc) <> ISNULL(this_crc))
+GROUP BY db, tbl;
+
+# On the master (lab7c-db1) start a mysql client
+mysql
+
+# On the master, delete one random record from the sbtest1 table
+set sql_log_bin=0;
+delete from sbtest.sbtest1 order by rand() limit 1;
+
+# Exit from the mysql client on the master (lab7c-db1)
+exit
+
+# Re-run pt-table-checksum on the master
+pt-table-checksum --no-check-binlog-format --chunk-time 0.1
+
+# Check for differences on the slave (lab7b-db2)
+SELECT db, tbl, SUM(this_cnt) AS total_rows, COUNT(*) AS chunks
+FROM percona.checksums
+WHERE (
+ master_cnt <> this_cnt
+ OR master_crc <> this_crc
+ OR ISNULL(master_crc) <> ISNULL(this_crc))
+GROUP BY db, tbl;
+
+# Let's identify which chunk has the issue on the slave (lab7b-db2)
+select * from percona.checksums where this_crc!=master_crc;
+
+# Check the lower and the upper boundary
+
+# The tables with differences can be synced to the master with pt-table-sync
+# this needs to run on the master (lab7b-db1)
+pt-table-sync --dry-run --replicate percona.checksums h=localhost
+pt-table-sync --execute --replicate percona.checksums h=localhost
+
+# on the master re-run pt-table-checksum
+pt-table-checksum --no-check-binlog-format --chunk-time 0.1
+
+# Check for differences on the slave
+SELECT db, tbl, SUM(this_cnt) AS total_rows, COUNT(*) AS chunks
+FROM percona.checksums
+WHERE (
+ master_cnt <> this_cnt
+ OR master_crc <> this_crc
+ OR ISNULL(master_crc) <> ISNULL(this_crc))
+GROUP BY db, tbl;
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

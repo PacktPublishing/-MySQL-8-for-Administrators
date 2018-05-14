@@ -1,0 +1,46 @@
+---
+- hosts: "{{ target }}"
+  become: true
+  vars_files:
+    - vars/mysql_config.yml
+  tasks:
+    - name: Get change master sql
+      set_fact:
+        change_master_sql: >
+          CHANGE MASTER TO MASTER_HOST='{{ source }}',
+          MASTER_USER='{{ replication['user'] }}',
+          MASTER_PASSWORD='{{ replication['password'] }}',
+          MASTER_PORT={{ mysql_config['mysqld']['port'] }}
+    - name: Configure replication
+      shell: "mysql -e \"{{ change_master_sql.strip() }};\""
+    - name: Reset master
+      shell: "mysql -e \"RESET MASTER;\""
+    - name: Start listener on target
+      shell: "socat -u tcp4-listen:4444,reuseaddr stdio | mysql"
+      async: 3600
+      poll: 0
+      register: listener_status
+
+- hosts: "{{ source }}"
+  become: true
+  vars_files:
+    - vars/mysql_config.yml
+  tasks:
+    - name: Stream backup to target
+      shell: "mysqldump --all-databases --triggers --routines --events --master-data=1 --single-transaction | socat -u - tcp:{{ target }}:4444"
+
+- hosts: "{{ target }}"
+  become: true
+  vars_files:
+    - vars/mysql_config.yml
+  tasks:
+    - name: Check listener status
+      async_status:
+        jid: "{{ listener_status.ansible_job_id }}"
+      register: listener_result
+      until: listener_result.finished
+      retries: 20
+    - name: Start slave
+      shell: "mysql -e \"START SLAVE;\""
+    - name: Flush privileges on slave
+      shell: "mysql -e \"SET SQL_LOG_BIN=0; FLUSH PRIVILEGES;\""

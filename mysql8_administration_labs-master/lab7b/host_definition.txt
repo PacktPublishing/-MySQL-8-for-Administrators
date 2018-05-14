@@ -1,0 +1,3 @@
+lab7b-db2 172.17.17.12 pboros/mysql8_admin_80
+lab7b-sysbench 172.17.17.13 pboros/mysql8_admin_80
+lab7b-db1 172.17.17.11 pboros/mysql8_admin_80

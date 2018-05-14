@@ -1,0 +1,24 @@
+---
+mysql_config:
+  mysqld:
+    read_only: 1
+    datadir: "/var/lib/mysql"
+    server_id: "{{ ansible_fqdn | get_server_id }}"
+    log_bin: "mysql-bin"
+    port: 3306
+    gtid_mode: 'OFF'
+    enforce_gtid_consistency: 'OFF'
+    sort_buffer_size: '256k'
+    log_slave_updates: 1
+    default_authentication_plugin: mysql_native_password
+    report_host: "{{ ansible_fqdn }}"
+    report_port: 3306
+    innodb_monitor_enable: 'all'
+  client:
+    user: "root"
+    password: "Not_so_secure1!"
+
+replication:
+  user: repl
+  password: repl
+

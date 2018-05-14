@@ -1,0 +1,71 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the source machine
+vagrant ssh lab6c-db1
+
+# Log in to the target machine
+vagrant ssh lab6c-db2
+
+# On the source machine (lab6c-db1), take a mysqldump
+mysqldump --routines --triggers --events --all-databases > dump.sql
+
+# On the target (lab6c-db2), start streaming the binary log of the source machine
+mysqlbinlog \
+--read-from-remote-server \
+--stop-never \
+--host lab6c-db1 \
+--port 3306 \
+-urepl \
+-prepl \
+mysql-bin.000001 > binlog_save.txt
+
+# On the source (lab6c-db1) start mysql client
+mysql
+
+# On the source(lab6c-db1), create a table and insert some records.
+# Note that this won't be part of the dump that we created
+use sbtest;
+create table t(id int primary key auto_increment, ts timestamp);
+insert into t values (null, now());
+insert into t values (null, now());
+insert into t values (null, now());
+
+# Exit the mysql client on the source machine (lab6c-db1)
+exit
+
+# Stop the binary log stream with ctrl-c on lab6c-db2
+
+# On the target (lab6c-db2) run reset master
+mysql -e "reset master"
+
+# On the target (lab6c-db2) start netcat listener on target and pipe it to mysql
+nc -l 9999 | mysql
+
+# On the source (lab6c-db1), send dump.sql to the target (lab6c-db2).
+# Note that this dump was created before we created the table and
+# inserted a few records to it.
+cat dump.sql | nc lab6c-db2 9999
+
+# Check the master status on both the source and the target with the
+# show master status command
+mysql -e "show master status"
+
+# The source has 4 more transactions, which we can restore from the binary
+# log backup we took. On the target (lab6c-db2), let's do that.
+cat binlog_save.txt | mysql
+
+# Check show master status again on the target (lab6c-db2)
+mysql -e "show master status"
+
+# Check the contents of the table on the target (lab6c-db2)
+mysql -e "select * from sbtest.t"
+
+# Exit from the ssh session with CTRL+d or exit command on both hosts
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

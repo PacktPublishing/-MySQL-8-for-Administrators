@@ -1,0 +1,2 @@
+lab4c-db2 172.17.17.12 pboros/mysql8_admin_80
+lab4c-db1 172.17.17.11 pboros/mysql8_admin_80

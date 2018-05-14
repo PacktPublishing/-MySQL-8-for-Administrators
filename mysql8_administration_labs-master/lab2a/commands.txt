@@ -1,0 +1,35 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the virtual machine
+vagrant ssh lab2a
+
+# Let's check the mysql configuration file
+sudo cat /etc/my.cnf
+
+# Let's verify that the server_id is indeed what it's configured to
+mysql -e "select @@server_id;"
+
+# Change the server_id to something else
+# Use any text editor you like instead of vim
+sudo vim /etc/my.cnf
+
+# Change the server_id to something else
+
+# Save the file and exit vim or from an other text editor
+:wq
+
+# Restart the mysql server
+sudo systemctl restart mysqld
+
+# Check if the new server_id is configured
+mysql -e "select @@server_id;"
+
+# Exit from the ssh session with CTRL+d or exit command
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

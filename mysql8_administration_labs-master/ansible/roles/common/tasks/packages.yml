@@ -1,0 +1,33 @@
+---
+- name: Check if mysql version is defined
+  assert:
+    that:
+      - mysql_version is defined
+
+- name: Disable mysql57-community repo
+  shell: yum-config-manager --disablerepo mysql57-community
+  when: mysql_version == 8.0
+
+- name: enable mysql80-community repo
+  shell: yum-config-manager --enablerepo mysql80-community
+  when: mysql_version == 8.0
+
+- name: Install mysql community server 8.0
+  yum:
+    name: "{{ item }}"
+    state: present
+    enablerepo: mysql80-community
+    disablerepo: mysql57-community
+  with_items:
+    - mysql-community-server-8.0.11-1.el7.x86_64
+  when: mysql_version == 8.0
+
+- name: Install mysql community server 5.7
+  yum:
+    name: "{{ item }}"
+    state: present
+    enablerepo: mysql57-community
+    disablerepo: mysql57-community
+  with_items:
+    - mysql-community-server-5.7.22-1.el7.x86_64
+  when: mysql_version == 5.7

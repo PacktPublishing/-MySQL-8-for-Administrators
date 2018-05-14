@@ -1,0 +1,87 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the monitoring box (lab5b-mon)
+vagrant ssh lab5b-mon
+
+# Install the docker package
+sudo yum -y install docker
+
+# Start the docker service
+sudo systemctl start docker
+
+# Download the PMM image
+sudo docker pull percona/pmm-server:1.7.0
+
+# Create the pmm-data container
+sudo docker create \
+   -v /opt/prometheus/data \
+   -v /opt/consul-data \
+   -v /var/lib/mysql \
+   -v /var/lib/grafana \
+   --name pmm-data \
+   percona/pmm-server:1.7.0 /bin/true
+
+# Run pmm
+sudo docker run -d \
+   -p 80:80 \
+   --volumes-from pmm-data \
+   --name pmm-server \
+   --restart always \
+   percona/pmm-server:1.7.0
+
+# Check PMM in the browser, the ip of the virtual machine is 172.17.17.15
+
+# Log in into each database server (lab5b-db1, lab5b-db2, lab5b-db3)
+# and install PMM client
+sudo yum -y install pmm-client
+
+# Configure the location of the PMM server
+sudo pmm-admin config --server lab5b-mon
+
+# Add mysql monitor
+sudo pmm-admin add mysql \
+--query-source perfschema \
+--socket=/var/lib/mysql/mysql.sock
+
+# Verify that it was added
+sudo pmm-admin list
+
+# Log into the sysbench machine (lab5b-sysbench)
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab5b-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+/usr/share/sysbench/oltp_read_write.lua prepare
+
+# Execute sysbench against the master
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab5b-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+--threads=4 \
+--time=0 \
+--events=0 \
+--report-interval=1 \
+--rate=10 \
+/usr/share/sysbench/oltp_read_write.lua run
+
+# Wait a bit and click around on the ui
+
+# Exit from all ssh sessions
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

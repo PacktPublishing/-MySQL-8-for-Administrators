@@ -1,0 +1,11 @@
+---
+get_url:
+  url: orchestrator['rpm_url']
+  dest: /tmp/{{ orchestrator['rpm'] }}
+  owner: root
+  group: root
+  mode: 0644
+
+yum:
+  name: /tmp/{{ orchestrator['rpm'] }}
+  state: present

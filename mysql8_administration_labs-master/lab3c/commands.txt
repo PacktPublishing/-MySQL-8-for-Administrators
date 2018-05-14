@@ -1,0 +1,73 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the virtual machine
+vagrant ssh lab3c
+
+# Start mysql client
+mysql
+
+# Create a reporting role
+create role 'reporting';
+
+# Add some privileges to it
+grant select on sbtest.* to 'reporting';
+grant select on sys.version to 'reporting';
+
+# Create 2 users
+create user 'user1'@'localhost' identified by 'foo';
+create user 'user2'@'localhost' identified by 'bar';
+
+# Assign the role to them
+grant 'reporting' to 'user1'@'localhost';
+grant 'reporting' to 'user2'@'localhost';
+
+# Check with show grants
+show grants for 'user1'@'localhost';
+show grants for 'user2'@'localhost';
+
+# Exit the mysql client with CTRL+d or the exit command
+exit
+
+# Check the user with pt-show-grants as well
+pt-show-grants | grep user1
+pt-show-grants | grep user2
+
+# Start the mysql client again
+mysql
+
+# Grant the reporting role to sbtest_user
+grant 'reporting' to 'sbtest_user'@'localhost';
+
+# Exit from the mysql client
+exit
+
+# Start mysql client as sbtest_user
+mysql -usbtest_user -psbtest_password
+
+# Check the permissions
+show grants;
+
+# Set reporting role
+set role 'reporting';
+
+# Check the privileges
+show grants;
+
+# Set back to default role
+set role none;
+
+# Check the privileges
+show grants;
+
+# Exit from mysql client with CTRL+d or exit command
+exit
+
+# Exit from the ssh session with CTRL+d or exit command
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

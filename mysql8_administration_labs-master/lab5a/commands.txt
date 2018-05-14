@@ -1,0 +1,140 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the master
+vagrant ssh lab5a-db1
+
+# Log into the slave
+vagrant ssh lab5a-db2
+
+# Log in to the sysbench nodes
+vagrant ssh lab5a-sysbench
+
+# On the sysbench node (lab5a-sysbench) run the prepare command
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab5a-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+/usr/share/sysbench/oltp_read_write.lua prepare
+
+# On the sysbench node (lab5a-sysbench), run some workload against the master
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab5a-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+--threads=4 \
+--time=0 \
+--events=0 \
+--rate=10 \
+--report-interval=1 \
+/usr/share/sysbench/oltp_read_write.lua run
+
+# On lab5a-db1 check the IO for a few seconds
+sudo iostat -mx 1
+
+# On lab5a-db1 check the CPU utilization for a few seconds
+sudo mpstat -P ALL 1
+
+# On lab5a-db1, try running mysqladmin ext -i1 for a few seconds
+mysqladmin ext -i1
+
+# On lab5a-db1, grep for Com_select in mysqladmin output
+mysqladmin ext -i1 | grep -i com_select
+
+# Use pt-mext to gather some change statistics on mysql variables
+pt-mext -r -- mysqladmin ext -i1 -c4 > mext.out
+
+# Check the contents of mext.out, find how many selects are we doing per second
+less mext.out
+
+# On lab5e-db1 start pt-stalk
+sudo pt-stalk --variable=Threads_running --threshold=5 --cycles=2
+
+# On lab5a-sysbench, stop the sysbench and put some more load on the server
+# by removing the rate and increasing the number of threads
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab5a-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+--threads=40 \
+--time=0 \
+--events=0 \
+--report-interval=1 \
+/usr/share/sysbench/oltp_read_write.lua run
+
+# Exit from pt-stalk by pressing ctrl-c on the db node once triggered
+
+# Stop the sysbench on the sysbench node with CTRL-c
+
+# After pt-stalk is triggered, stop sysbench
+# Examine the /var/lib/pt-stalk directory
+
+# On lab5a-db1 start mysql client
+mysql
+
+# Examine the sys.statement_analysis
+desc sys.statement_analysis
+
+# Notice that total_latency is text
+
+$ Examine sys.x$statement_analysis
+desc sys.x$statement_analysis
+
+# Examine the top 3 queries by latency
+select * from sys.x$statement_analysis order by total_latency desc limit 3\G
+
+# Examine the top 3 queries by rows examined
+select * from sys.x$statement_analysis order by rows_examined desc limit 3\G
+
+# Exit from the mysql client from lab5a-db1
+exit
+
+# Start monitoring replication lag on lab5a-db2 and leave that running
+while true ; do mysql -e "show slave status\G" | grep Seconds_Behind_Master ; sleep 1 ; done
+
+# Start a workload on lab5a-db1, which consists of lots of small writes
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab5a-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+--threads=16 \
+--time=0 \
+--events=0 \
+--report-interval=1 \
+/usr/share/sysbench/oltp_update_index.lua run
+
+# See the replication lag growing. Stop sysbench. See the replication lag catching up.
+
+# Exit from the ssh session with CTRL+d or exit command on lab5a-db1
+exit
+
+# Exit from the ssh session with CTRL+d or exit command on lab5a-db2
+exit
+
+# Exit from ssh session with CTRL+d or exit command on lab5a-sysbench
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

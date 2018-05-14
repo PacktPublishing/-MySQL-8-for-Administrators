@@ -1,0 +1,32 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the source database machine
+vagrant ssh lab6a-db1
+
+# Log in to the target database machine
+vagrant ssh lab6a-db2
+
+# Do a mysqldump of all databases on lab6a-db1, and save it to dump.sql file
+mysqldump --all-databases --triggers --routines --events > dump.sql
+
+# On lab6a-db2 start netcat
+nc -l 9999 | cat - > dump.sql
+
+# On lab6a-db2 send dump.sql through ntecat
+cat dump.sql | nc lab6a-db2 9999
+
+# Make sure that mysql is running on lab6a-db2
+sudo systemctl status mysqld
+
+# Restore the database dump
+mysql < dump.sql
+
+# Exit from the ssh session with CTRL+d or exit command
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

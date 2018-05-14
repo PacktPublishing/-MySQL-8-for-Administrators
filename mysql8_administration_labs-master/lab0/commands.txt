@@ -1,0 +1,87 @@
+# All the labs will be using vagrant and virtualbox. You need to have them
+# both installed.
+# https://www.vagrantup.com/docs/installation/
+# https://www.virtualbox.org/manual/ch02.html
+# On Mac OS X, the simplest way to install is via homebrew
+# https://brew.sh
+
+# Every lab will have a text file like this one with comments on the actions
+# and the exact actions to perform.
+
+# All lab activities will be in the videos, doing them yourself is not
+# necessary to benefit from the course. However, for a deeper understanding,
+# I recommend to have the environment and follow along the labs.
+
+# To install vagrant via homebrew
+brew cask install vagrant
+
+# To install virtualbox via homebrew
+brew cask install virtualbox
+
+# If you don't have git, install it to be able to clone the labs repositories
+# Simplest way is via homebrew as well.
+brew install git
+
+# Check out the labs on your local machine
+git clone https://github.com/pboros/mysql8_administration_labs.git
+
+# Check the configured environment with vagrant status command
+vagrant status
+
+# Start the environment
+vagrant up
+
+# Log into the virtualbox
+vagrant ssh lab0
+
+# Create a file we are going to work With
+echo "aaa" > bbb
+
+# Exit the ssh session (alternatively, press CTRL+d)
+exit
+
+# Check status
+vagrant status
+
+# Stop the virtual machine, the virtual machine, and your changes will be still
+# intact in this case
+vagrant halt
+
+# Check status
+vagrant status
+
+# Start the virtual machine again
+vagrant up
+
+# Log in again
+vagrant ssh lab0
+
+# Check the file we worked with
+cat bbb
+
+# Log out again
+exit
+
+# Destroy the environment (deletes the virtual machine)
+# Without the -f, you will get a confirmation prompt
+# This is most useful if you are done with the labs, or if you would like to
+# "reset" and get a clean environment
+vagrant destroy -f
+
+# Check the status again
+vagrant status
+
+# Start it again
+vagrant up
+
+# Log in via ssh again
+vagrant ssh lab0
+
+# Check that the file is gone
+cat bbb
+
+# Log out again
+exit
+
+# Destroy one last time
+vagrant destroy -f

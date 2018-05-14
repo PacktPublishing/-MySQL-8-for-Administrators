@@ -1,0 +1,85 @@
+# Start the lab environment
+vagrant up
+
+# Log in to the virtual machine
+vagrant ssh lab1c
+
+# First do some cleanup (very old version, but provides my.cnf which
+# could conflict with ours)
+sudo yum remove -y mariadb-libs
+
+# Download tarball of MySQL Community Server 8.0
+curl -L -O https://dev.mysql.com/get/Downloads/MySQL-8.0/mysql-8.0.11-linux-glibc2.12-x86_64.tar.gz
+# Unpack the tarball to /usr/local
+sudo tar xvfz mysql-8.0.11-linux-glibc2.12-x86_64.tar.gz -C /usr/local/
+
+# Install libaio (this is a dependency pf the packages)
+sudo yum -y install libaio
+
+# Add mysql group (this is done by the packages)
+sudo groupadd mysql
+
+# Add mysql user (this is done by the packages)
+sudo useradd -r -g mysql -s /bin/false mysql
+
+# Verify that the mysql user is present
+getent passwd | grep mysql
+
+# Change directory to /usr/local
+cd /usr/local
+
+# Create a symlink to the mysql version being installed
+sudo ln -s mysql-8.0.11-linux-glibc2.12-x86_64 mysql
+
+# Check the symlink
+ls -la mysql
+
+# Create mysql-files directory
+sudo mkdir mysql-files
+
+# Change the owner to mysql
+sudo chown mysql:mysql mysql-files
+
+# Change the permissions
+sudo chmod 750 mysql-files
+
+# Change directory to /usr/local/mysql
+cd mysql
+
+# Initialize mysqld (on earlier versions this step was mysql_install_db)
+sudo ./bin/mysqld --initialize --user=mysql
+
+# Note the temporary root password that is generated
+
+# Copy the init script from support-files to /etc/init.d
+sudo cp ./support-files/mysql.server /etc/init.d/
+
+# Start MySQL server
+sudo /etc/init.d/mysql.server start
+
+# Connect to mysql server with the temporary root password
+./bin/mysql -u root -p
+
+# Try show databases
+show databases;
+
+# Change the temporary root password
+alter user 'root'@'localhost' identified by 'Not_so_secure1!';
+
+# Quit from mysql client with exit or ctrl+d
+exit
+
+# Log in with the new root password
+./bin/mysql -u root -p
+
+# Try show databases
+show databases;
+
+# Exit from mysql with CTRL+d or exit command
+exit
+
+# Exit from the ssh session with CTRL+d or exit command
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

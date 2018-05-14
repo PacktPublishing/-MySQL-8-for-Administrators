@@ -1,0 +1,92 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the source database machine
+vagrant ssh lab4b-db1
+
+# Log into the target database machine
+vagrant ssh lab4b-db2
+
+# Start mysql client on lab4b-db1
+mysql
+
+# Check the replication user
+select user,host from mysql.user;
+show grants for 'repl'@'%';
+
+# Exit from the mysql client
+exit
+
+# Create a mysqldump from the database
+mysqldump --all-databases --master-data=2 --single-transaction > dump.sql
+
+# Verify that the CHANGE MASTER command is visible in the dump
+head -30 dump.sql
+
+# Note the change master command here, in my case it is
+-- CHANGE MASTER TO MASTER_LOG_FILE='mysql-bin.000002', MASTER_LOG_POS=4197;
+
+# On lab4b-db2 start a netcat listener
+nc -l 9999 > dump.sql
+
+# Send the dump to it on lab4a-db1
+cat dump.sql | nc lab4b-db2 9999
+
+# Load the dump on lab4b-db2
+mysql < dump.sql
+
+# Start mysql client on lab4b-db2
+mysql
+
+# Configure replication
+change master to master_host='lab4b-db1', master_user='repl',
+master_password='repl', master_port=3306,
+master_log_file='mysql-bin.000002', master_log_pos=4927;
+
+# Start the slave
+start slave;
+
+# Check if the slave is running
+show slave status\G
+
+# Start mysql client on lab4b-db1
+mysql
+
+# Change the schema to sbtest
+use sbtest;
+
+# Verify that there are no tables there
+show tables;
+
+# Create a dummy table
+create table t(id int primary key auto_increment, ts timestamp);
+
+# Change the schema to sbtest in lab4b-db2 mysql client
+use sbtest;
+
+# Check the tables, the t table will be there on lab4b-db2
+show tables;
+
+# Check master status on lab4b-db1, notice the position advancing
+show master status;
+
+# Check the slave status on lab4b-db2, notice the position advancing
+show slave status\G
+
+# Insert one or a few records on the master, lab4b-db1
+insert into t values(null, now());
+
+# On the slave, lab4b-db2, verify that the records are there
+select * from t;
+
+# Exit from mysql client on both machines
+exit
+
+# Exit from the ssh session with CTRL+d or exit command both machines
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

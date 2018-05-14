@@ -1,0 +1,5 @@
+lab5b-db2 172.17.17.12 pboros/mysql8_admin_80
+lab5b-db3 172.17.17.13 pboros/mysql8_admin_80
+lab5b-sysbench 172.17.17.14 pboros/mysql8_admin_80
+lab5b-mon 172.17.17.15 pboros/mysql8_admin_80
+lab5b-db1 172.17.17.11 pboros/mysql8_admin_80

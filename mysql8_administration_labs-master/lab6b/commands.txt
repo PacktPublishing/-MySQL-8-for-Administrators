@@ -1,0 +1,58 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the source database machine
+vagrant ssh lab6b-db1
+
+# Log into the target database machine
+vagrant ssh lab6b-db2
+
+# Stop mysqld on lab6b-db2
+sudo systemctl stop mysqld
+
+# Wipe the datadir on lab6b-db2
+sudo rm -rf /var/lib/mysql/*
+
+# Start listener and pipe it to xbstream (lab6b-db2)
+nc -l 9999 | sudo xbstream -xv -C /var/lib/mysql/
+
+# Start xtrabackup on lab6b-db1
+sudo innobackupex --stream=xbstream /tmp | nc lab6b-db2 9999
+
+# Apply logs
+sudo innobackupex --apply-log /var/lib/mysql/
+
+# On lab6b-db2 change the owner or the datadir to mysql
+sudo chown -R mysql:mysql /var/lib/mysql
+
+# Start mysqld
+sudo systemctl start mysqld
+
+# Check the xtrabackup_binlog_info file in the data directory
+sudo cat /var/lib/mysql/xtrabackup_binlog_info
+(note the filename and the position and the gtid)
+
+# Optional: configure replication
+set global gtid_purged='e49ddb66-2c7f-11e8-b49f-080027d35974:1-19';
+change master to
+master_host='lab6b-db1',
+master_user='repl',
+master_password='repl',
+master_port=3306,
+master_auto_position=1;
+start slave;
+
+# Check the fresh configured replication
+show slave status;
+
+# Exit from the mysql sessions on both nodes
+exit
+
+# Exit from the ssh session on both nodes
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

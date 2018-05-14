@@ -1,0 +1,161 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the sysbench node (lab4d-sysbench)
+vagrant ssh lab4d-sysbench
+
+# Log in to the master (lab4d-db1)
+vagrant ssh lab4d-db1
+
+# Log in to the first slave (lab4d-db2)
+vagrant ssh lab4d-db2
+
+# Log in to the second slave (lab4d-db3)
+vagrant ssh lab4d-db3
+
+# On the sysbench node (lab4d-sysbench) run the prepare command
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab4d-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+/usr/share/sysbench/oltp_read_write.lua prepare
+
+# On the sysbench node (lab4d-sysbench), run some workload against the master
+sysbench \
+--db-driver=mysql \
+--mysql-user=sbtest_user \
+--mysql_password=sbtest_password \
+--mysql-db=sbtest \
+--mysql-host=lab4d-db1 \
+--mysql-port=3306 \
+--tables=16 \
+--table-size=10000 \
+--threads=4 \
+--time=0 \
+--events=0 \
+--rate=10 \
+--report-interval=1 \
+/usr/share/sysbench/oltp_read_write.lua run
+
+# Start mysql client on the master (lab4d-db1)
+mysql
+
+# Start mysql client on the second slave (lab4d-db2)
+mysql
+
+# Start mysql client on the third slave (lab4d-db3)
+mysql
+
+# On the master, check the running workload with show processlist
+show processlist;
+
+# From now on, we will work like slaves first, and than the master
+
+# Set enforce_gtid_consistency variable to warn on the second slave (lab4d-db3)
+set global enforce_gtid_consistency = 'warn';
+
+# Set enforce_gtid_consistency variable to warn on the first slave (lab4d-db2)
+set global enforce_gtid_consistency = 'warn';
+
+# Set enforce_gtid_consistency variable to warn on the master (lab4d-db1)
+set global enforce_gtid_consistency = 'warn';
+
+# On all 3 nodes, check the location of the error log
+select @@log_error;
+
+# On all 3 nodes, exit from the mysql client
+exit
+
+# On all 3 nodes, make sure that there are no errors in the error log
+sudo journalctl -u mysqld
+
+# So far this was a description of how to do a step, there will be more of these
+
+# The next step is to set enforce_gtid_consistency to on on all 3 nodes
+# Similarly to the previous step, on all nodes, start mysql client, change
+# the variable, and at the end check the error logs one by one
+mysql
+set global enforce_gtid_consistency='on';
+exit
+sudo journalctl -u mysqld
+
+# On each server set gtid_mode to 'off_permissive'
+mysql
+set global gtid_mode='off_permissive';
+exit
+sudo journalctl -u mysqld
+
+# On each server set gtid_mode to 'on_permissive'
+mysql
+set global gtid_mode='on_permissive';
+exit
+sudo journalctl -u mysqld
+
+# Make sure that on each server the ongoing anonymous transactions is zero
+# our setup doesn't have traffic right now for the sake of simplicity
+mysql
+show status like 'ongoing_anonymous_transaction_count';
+exit
+
+# Set gtid_mode to on on each server
+mysql
+set global gtid_mode='on';
+exit
+sudo journalctl -u mysqld
+
+# On the slaves, re-initialize replication to use master_auto_position=1
+mysql
+stop slave;
+change master to master_auto_position=1;
+start slave;
+exit
+sudo journalctl -u mysqld
+
+# On the slaves, check show slave status
+mysql
+show slave status\G
+exit
+
+# On the master, check show master status
+mysql
+show master status;
+exit
+
+# Now, we are going to turn gtids off
+# On each server in mysql client execute
+set global gtid_mode='on_permissive';
+
+# On each server execute
+set global gtid_mode='off_permissive';
+
+# On the slaves, replication will break at this point. The IO error will
+# show the binary log filename and position of the first anonymous
+# transaction the slave received, we need to set the slave back for filename
+# and position based replication
+change master to master_log_file='mysql-bin.000007', master_log_pos=195,
+master_auto_position=0;
+
+# On each server, wait until global.gtid_owned is empty
+select @@global.gtid_owned;
+
+# On each server execute
+set global gtid_mode=off;
+
+# Stop sysbench on the benchmarking node with CTRL-c
+
+# Exit from all mysql clients with CTRL-d or the exit command
+exit
+
+# Exit from the shells on all nodes with CTRL-d or the exit command
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

@@ -1,0 +1,7 @@
+- hosts: all
+  become: true
+  vars_files:
+    - vars/mysql_config_gtid.yml
+  roles:
+    - common
+    - db_slave

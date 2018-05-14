@@ -1,0 +1,5 @@
+---
+- include_tasks: hosts.yml
+- include_tasks: packages.yml
+- include_tasks: mysql_config.yml
+- include_tasks: disable_selinux.yml

@@ -1,0 +1,3 @@
+---
+- name: Set read-write
+  shell: "mysql -e \"SET GLOBAL read_only=0\""

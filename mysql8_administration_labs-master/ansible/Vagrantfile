@@ -1,0 +1,72 @@
+def_file = "host_definition.txt"
+fh = open(def_file)
+definitions = {}
+fh.each do |def_line|
+    machine_name, ip = def_line.split()
+    definitions[machine_name] = ip
+end
+machines = definitions.keys()
+ips = definitions.values()
+num_machines = machines.length
+
+Vagrant.configure("2") do |config|
+    (1..num_machines).each do |machine_id|
+        config.vm.define machines[machine_id-1] do |machine|
+            machine.vm.box = "centos/7"
+            machine.vm.network "private_network", ip: ips[machine_id-1]
+            machine.vm.hostname = machines[machine_id-1]
+            machine.vm.provider "virtualbox" do |vb|
+                vb.memory = 512
+            end
+
+            if machine_id == num_machines
+                machine.vm.provision "ansible" do |ansible_master|
+                    ansible_master.groups = {
+                        "master" => ["db1"]
+                    }
+                    ansible_master.limit = "master"
+                    ansible_master.config_file = "ansible.cfg"
+                    ansible_master.playbook = "master_local.yml"
+                end
+
+                machine.vm.provision "ansible" do |ansible_slaves|
+                    ansible_slaves.groups = {
+                        "slaves" => ["db2", "db3", "orch1"]
+                    }
+                    ansible_slaves.limit = "slaves"
+                    ansible_slaves.config_file = "ansible.cfg"
+                    ansible_slaves.playbook = "slave_local.yml"
+                end
+
+                machine.vm.provision "ansible" do |ansible_clone|
+                    ansible_clone.groups = {
+                        "clone_boxes" => ["db1", "db2"]
+                    }
+                    ansible_clone.limit = "clone_boxes"
+                    ansible_clone.config_file = "ansible.cfg"
+                    ansible_clone.playbook = "clone.yml"
+                    ansible_clone.raw_arguments = ["-e source=db1 -e target=db2"]
+                end
+
+                machine.vm.provision "ansible" do |ansible_clone|
+                    ansible_clone.groups = {
+                        "clone_boxes" => ["db1", "db3"]
+                    }
+                    ansible_clone.limit = "clone_boxes"
+                    ansible_clone.config_file = "ansible.cfg"
+                    ansible_clone.playbook = "clone.yml"
+                    ansible_clone.raw_arguments = ["-e source=db1 -e target=db3"]
+                end
+
+                machine.vm.provision "ansible" do |ansible_clone|
+                    ansible_clone.groups = {
+                        "orchestrators" => ["orch1"]
+                    }
+                    ansible_clone.limit = "orchestrators"
+                    ansible_clone.config_file = "ansible.cfg"
+                    ansible_clone.playbook = "orch.yml"
+                end
+            end
+        end
+    end
+end 

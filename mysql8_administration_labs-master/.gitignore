@@ -1,0 +1,17 @@
+# Idea
+.idea
+
+# Vagrant 
+.vagrant
+
+# Ansible retry
+*.retry
+
+# pyc
+*.pyc
+
+# packer build results
+boxbuild/build*
+
+# packer cache
+boxbuild/*/packer_cache

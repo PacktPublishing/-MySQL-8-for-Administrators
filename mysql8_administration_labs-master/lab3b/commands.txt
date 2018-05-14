@@ -1,0 +1,78 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the virtual machine
+vagrant ssh lab3b
+
+# Download the sakila sample database
+curl -L -O http://downloads.mysql.com/docs/sakila-db.tar.gz
+
+# Extract it
+tar xvfz sakila-db.tar.gz
+
+# Start mysql client
+mysql
+
+# Create database and user for the sample database
+create database sakila;
+create user 'sakila'@'localhost' identified by 'sakilapass';
+grant all on sakila.* to 'sakila'@'localhost';
+
+# Exit the mysql client with exit or CTRL+d
+exit
+
+# Load the sakila schema with the root user
+mysql sakila < sakila-db/sakila-schema.sql
+
+# Load the data with the root user
+mysql sakila < sakila-db/sakila-data.sql
+
+# Start mysql client with the sakila user
+mysql -usakila -psakilapass
+
+# List the databases
+show databases;
+
+# Change the default database to sakila
+use sakila;
+
+# List the tables
+show tables;
+
+# Let's take a peek at actor
+select * from actor limit 10;
+
+# Let's check table definition
+desc actor;
+
+# Let's check table definition in a way that's more mysql specific
+show create table actor;
+show create table actor\G
+
+# Take a look at actor info
+select * from actor_info limit 5;
+
+# Check actor info definition
+desc actor_info;
+show create table actor_info\G
+
+# One last thing: the mwb file there
+
+# Look at the ERR diagram
+
+# Come up with this query
+select a.first_name, a.last_name, group_concat(f.title)
+from actor a
+inner join film_actor fa on a.actor_id=fa.actor_id
+inner join film f on fa.film_id=f.film_id
+group by a.first_name, a.last_name
+order by a.first_name, a.last_name limit 10;
+
+# Exit from the ssh session with CTRL+d or exit command
+exit
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f

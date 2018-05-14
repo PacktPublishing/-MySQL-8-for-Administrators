@@ -1,0 +1,10 @@
+{% for section_key, section_values in mysql_config.iteritems() %}
+[{{ section_key }}]
+{% for config_key, config_value in section_values.iteritems() %}
+{% if config_value != None %}
+{{ config_key }} = {{ config_value }}
+{% else %}
+{{ config_key }}
+{% endif %}
+{% endfor %}
+{% endfor %}

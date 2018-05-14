@@ -1,0 +1,36 @@
+---
+- name: Create datadir
+  file:
+    path: "{{ mysql_config['mysqld']['datadir'] }}"
+    owner: mysql
+    group: mysql
+    mode: 0755
+    state: directory
+
+- name: Check if datadir is empty
+  find:
+    paths: "{{ mysql_config['mysqld']['datadir'] }}/"
+    file_type: any
+    recurse: no
+  register: files_in_datadir
+  changed_when: false
+
+- name: Initialize mysqld
+  shell:
+    cmd: "mysqld --initialize --user=mysql"
+  when: files_in_datadir.files | length == 0
+  register: mysql_init_output
+
+- name: Get mysql temp root password
+  set_fact:
+    mysql_temp_root_password: "{{ mysql_init_output.stderr_lines | get_temp_password }}"
+  when: files_in_datadir.files | length == 0
+
+- name: Start mysqld
+  systemd:
+    name: mysqld
+    state: started
+
+- name: Set root password to the configured one
+  shell: "mysql -u root -p'{{ mysql_temp_root_password }}' --connect-expired-password -e \"alter user 'root'@'localhost' identified by '{{ mysql_config['client']['password'] }}'\""
+  when: files_in_datadir.files | length == 0

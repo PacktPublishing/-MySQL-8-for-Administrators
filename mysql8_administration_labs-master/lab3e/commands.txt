@@ -1,0 +1,47 @@
+# Check if the virtual machine is running
+vagrant status
+
+# Start the lab environment
+vagrant up
+
+# Log in to the virtual machine
+vagrant ssh lab3e
+
+# Start a mysql client
+mysql
+
+# Create 2 users with the same password
+create user 'user1'@'localhost' identified by 'foobar';
+create user 'user2'@'localhost' identified by 'foobar';
+
+# Check the created users
+select user,host,authentication_string from mysql.user where user like 'user%';
+
+# Exit from the mysql client
+
+# Remove the default_authentication_plugin line from my.cnf
+
+# Restart mysql
+sudo systemctl restart mysqld
+
+# Start a mysql client
+mysqlm
+
+# Create 2 more users with the same password
+create user 'user3'@'localhost' identified by 'foobar';
+create user 'user4'@'localhost' identified by 'foobar';
+
+# Check the users
+select user,host,authentication_string from mysql.user where user like 'user%';
+
+# Exit from mysql client with CTRL+d or exit command
+exit
+
+# Exit from the ssh session with CTRL+d or exit command
+exit
+
+# Optional: If you have an older mysql client on your laptop (like me), try it
+mysql -h172.17.17.11 -uuser3 -pfoobar
+
+# Destroy or stop the vagrant environment
+vagrant destroy -f
